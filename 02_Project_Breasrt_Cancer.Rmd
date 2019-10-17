@@ -1,0 +1,122 @@
+---
+title: "KNN_PROJECT"
+author: "Marie Levet"
+date: "10/15/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm (list = ls ()) # clear R's brain 
+
+# load the necesary library 
+library(tidyverse)
+library(forcats)
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r}
+# import the data
+breast_cancer <- readr::read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data")
+
+breast_cancer_names <-readr::read_lines("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.names")
+
+which(stringr::str_detect(wdbc_names, "Attribute"))
+```
+
+Le jeu de données que nous utilisons ici porte sur le cancer du sein. 
+Le présent fichier csv comporte uniquement les données; les noms associès à chacunes des observations se trouvent dans un fichier séparé. 
+Ainsi, nous devons en premier lieu ajouter les noms des colonnes au jeu de données. Pour ce faire nous utiliserons "hearder = FALSE" et ensuite la fonction names ().
+Ici, l'ensemble des colonnes ne seront pas renommées car toutes ne seront pas necessaire pour répondre à notre question. 
+
+** Manipulating et formatting the dataset **
+
+```{r}
+#Add headers to the dataset
+breast_cancer<- read.csv(
+          "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
+          header=FALSE)
+# Using hearder = FALSE result in adding hearder with the same name.
+# names () allows us to rename the headers (for the first 12 columns - We will only use those variables for the project) 
+names(breast_cancer) <- c("ID","CLASS","RADIUS","TEXTURE","PERIMETER","AREA","SMOOTHNESS","COMACTNESS","CONCAVITY","CONCAVE_POINTS","SYMMETRY","FRACTAL_DIMENSION")
+
+# subset the dataset to only keep the wanted columns with function subset()
+breast_cancer = subset(breast_cancer, select = c("ID","CLASS","RADIUS","TEXTURE","PERIMETER","AREA","SMOOTHNESS","COMACTNESS","CONCAVITY","CONCAVE_POINTS","SYMMETRY","FRACTAL_DIMENSION") )
+
+# we subset the data again in order to divde the dataset and then keep some extra rows for building the classifer for the KNN.
+
+breast_cancer2<- breast_cancer [c(1:100)] # problem with trying to subset this data
+```
+
+** Visualisation de notre dataset **
+
+Après les manipulations sur le jeu de donées, nous pouvons le visualiser.
+Cette étape nous permettera par la suite de mieux construire notre classification; basé sur l'apporche du "K-nearest neighbour".
+
+```{r}
+
+# visualise of the 6 first rows of the data 
+head(breast_cancer)
+
+# exploring the dataset with group_by () & summarize () function and we had a % to have a more "visual number" between maligne and begnin tumours.
+
+num_obs <- nrow(breast_cancer)
+breast_cancer %>% 
+  group_by(CLASS) %>% 
+  summarize(n = n(),
+            percentage = n() / num_obs * 100) # to convert the observation as a percentage 
+
+```
+
+Cette exploration de nos données nous permets de voir le nombre et le pourcentage de tumeurs benignes et malinge. Ainsi, nous pouvons voir ici que 62,7% des tumeurs sont de type bénine contre 37,3% de type maligne. 
+
+Dans le cadre de cet exercise, nous sommes intéréssé par la prédiction qu'une tumeur soit bénine ou maligne basé sur deux variables (le périmètre et la circonférence). 
+Dès lors nous pouvons faire une visualisation de notre jeu de données pour voir si il y a une correlation entre le perimètre et la concavité dans le caractère bénin ou malin d'une tumeur.
+
+```{r}
+# Visualisation of the data with the plotting function
+breast_cancer %>%  
+  ggplot(aes(x = PERIMETER, y = CONCAVITY, colour = CLASS)) + 
+  theme_bw() +
+  ylab ("Concavité") + xlab ("Périmétre") +
+    geom_point(alpha = 0.8, shape = 23) +
+  scale_fill_manual (values = c (B = "Blue", M = "Red")) # problem with the scale and the colours (?) -> data not clean?
+```
+
+
+```{r}
+# Trying to do the classifier
+# problem during install of Caret could not install if I choose "R start R option"
+library (lattice) # needed to have the caret package working
+library(ggplot2) # needed to have the caret package working
+library (caret) # restart R did not work here.
+
+# First step is to select the two columns "perimeter" & "concavity" as it based on those that the classifer will predict if a new data is B or M.
+
+breast_cancersubest <- breast_cancer %>% # creating a subset of the data
+  select("PERIMETER", "CONCAVITY")
+head(breast_cancersubest )
+
+# Second step: convert CLASS into a vecteur, in order to be able to predict on it.
+cancer_type <- breast_cancer %>% 
+  select(CLASS) %>% 
+  unlist()
+head(cancer_type)
+
+#Third step: building the classifer
+knn <- data.frame(k = 5) # affect an object / function data.frame to build up
+model_knn <- train(x = data.frame(breast_cancersubest), y = cancer_type, method='knn', tuneGrid = k)
+# can't process it - thing there is a problem withe the values 
+# visual check for NA's -> negatif
+
+prediction <- data.frame(Perimeter = 0.3, Concavity = 90.2) 
+predict(object = model_knn, prediction) # print of the object 
+```
+
